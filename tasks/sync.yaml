@@ -23,6 +23,19 @@
     repository: "{{ item.name }}"
     organization: "{{ organization }}"
   with_items: "{{ repositories | json_query('resources[?content_type == `yum`].{ name: name, product: product.name }') }}"
+  async: 5
+  poll: 0
+  register: async_loop
   tags:
     - satellite-configure
     - satellite-configure-syncrepos
+
+- name: Wait for sync jobs to finish
+  async_status:
+    jid: "{{item.ansible_job_id}}"
+    mode: status
+  retries: 11
+  delay: 1
+  loop: "{{async_loop.results}}"
+  register: async_loop_jobs
+  until: async_loop_jobs.finished
